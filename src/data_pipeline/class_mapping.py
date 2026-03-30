@@ -1,8 +1,8 @@
 from pathlib import Path
 import json
 
-# EXPLAINATION: The Input of YOLO is fomarted: <class> <x_center> <y_center> <width> <height> (normalized by image width and height). 
-# We better transfor the annotation files in the datasets to the YOLO format for better training performance.
+# EXPLAINATION: The Input of YOLO is formatted: <class> <x_center> <y_center> <width> <height> (normalized by image width and height). 
+# We better transform the annotation files in the datasets to the YOLO format for better training performance.
 
 def mapping_visdrone(label_path):   
     """
@@ -18,9 +18,9 @@ def mapping_visdrone(label_path):
     for file_path in annotation_path.glob("*.txt"):
         file_objects = []  
 
-        with open(file_path, 'r') as file:
+        with file_path.open('r', encoding='utf-8') as file:
             for line in file:
-                parts = line.strip().split(',') # Split the line into  parts.
+                parts = line.strip().split(',') # Split the line into parts.
     
                 # Check valid 
                 if len(parts) != 8:
@@ -48,9 +48,10 @@ def mapping_visdrone(label_path):
                 if width <= 0 or height <= 0:
                     continue
 
+                # Sử dụng Tuple () để tối ưu bộ nhớ
                 file_objects.append((TARGET_CLASS_LABEL, x_min, y_min, width, height))
         
-        #  Only add the file to the mapped_objects if there are valid objects in it (Human in this case).
+        # Only add the file to the mapped_objects if there are valid objects in it (Human in this case).
         if file_objects:
             mapped_objects[f"visdrone_{file_path.stem}"] = file_objects
 
@@ -61,7 +62,6 @@ def mapping_afoninja(label_paths):
     """
     Read the annotation files in the AFO for mapping class human: {'person', 'human'} -> {'human'}.
     """
-
     AFONINJA_HUMAN_LABELS = {"person", "human"} # person, human in AFO dataset.
     TARGET_CLASS_LABEL = 0 # Human in the target dataset.
 
@@ -73,7 +73,8 @@ def mapping_afoninja(label_paths):
         file_objects = []
 
         try:
-            with json_file,open('r') as file:
+            # SỬA LỖI CÚ PHÁP: Dùng dấu chấm '.' và ép chuẩn utf-8
+            with json_file.open('r', encoding='utf-8') as file:
                 data = json.load(file)
         
             for obj in data.get('objects', []):
@@ -98,7 +99,7 @@ def mapping_afoninja(label_paths):
                 if width <= 0 or height <= 0:
                     continue
 
-                file_objects.append([TARGET_CLASS_LABEL, x_min, y_min, width, height])
+                file_objects.append((TARGET_CLASS_LABEL, x_min, y_min, width, height))
 
         except (json.JSONDecodeError, KeyError, IndexError) as e:
             print(f"Error parsing {json_file.name}: {e}")
@@ -110,4 +111,3 @@ def mapping_afoninja(label_paths):
             mapped_objects[f"afo_{image_name}"] = file_objects
 
     return mapped_objects
-        

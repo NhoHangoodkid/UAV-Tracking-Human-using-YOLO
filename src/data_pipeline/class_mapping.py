@@ -1,8 +1,12 @@
 from pathlib import Path
 import json
 
-# EXPLAINATION: The Input of YOLO is formatted: <class> <x_center> <y_center> <width> <height> (normalized by image width and height). 
-# We better transform the annotation files in the datasets to the YOLO format for better training performance.
+# Both VisDrone and AFO datasets have different class labels for human objects. 
+# This module provides functions to read the annotation files from both datasets and map the human-related classes to a unified label 
+# (e.g., "human") for further processing in the data pipeline. 
+# The mapping functions will extract the relevant information (class label, bounding box coordinates) and return a 
+# dictionary of mapped objects that can be used for training or evaluation in a consistent format.
+
 
 def mapping_visdrone(label_path):   
     """
@@ -73,7 +77,7 @@ def mapping_afoninja(label_paths):
         file_objects = []
 
         try:
-            # SỬA LỖI CÚ PHÁP: Dùng dấu chấm '.' và ép chuẩn utf-8
+ 
             with json_file.open('r', encoding='utf-8') as file:
                 data = json.load(file)
         

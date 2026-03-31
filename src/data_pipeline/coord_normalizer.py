@@ -51,20 +51,20 @@ def clip(value):
     """
     Clip a value to the range [0, 1]. This is used to ensure that the normalized coordinates do not exceed the valid range.
     """
-    return max(0, min(1, value))
+    return min(max(value, 0.0), 1.0)
 
-def normalize_coordinates(mapped_objects, images_dir):
+def normalize_coordinates(mapped_objects, images_dirs):
     """
     Normalize the coordinates of the bounding boxes in the mapped_objects based on the dimensions of the corresponding images.
     The function iterates through each file in the mapped_objects, retrieves the image dimensions using get_image_size(),
     and then normalizes the coordinates to the YOLO format.
     """
-    if isinstance(image_dirs, (str, Path)):
-        image_dirs = [image_dirs]
+    if isinstance(images_dirs, (str, Path)):
+        images_dirs = [images_dirs]
 
     image_index = {}
     
-    for folder in image_dirs:
+    for folder in images_dirs:
         folder_path = Path(folder)
 
         if not folder_path.exists():
@@ -77,12 +77,12 @@ def normalize_coordinates(mapped_objects, images_dir):
     normalized_data = {}
 
     for image_key, bboxes in mapped_objects.items():
-        
-        # "visdrone_00001" -> _, "00001"
+
+        # "visdrone_uav_0001_frame_002" -> ["visdrone", "uav_0001_frame_002"]
         parts = image_key.split('_', 1)
         if len(parts) != 2:
             continue
-            
+
         _, image_stem = parts
 
         image_path = image_index.get(image_stem)
@@ -96,27 +96,40 @@ def normalize_coordinates(mapped_objects, images_dir):
         img_width, img_height = size
         normalized_bboxes = []
 
- 
         for class_id, x_min, y_min, width, height in bboxes:
-            
-            if x_min >= img_width or y_min >= img_height or (x_min + width) <= 0 or (y_min + height) <= 0:
+
+            # Calculate the coordinate of the opposite corner of the bounding box
+            x_max = x_min + width
+            y_max = y_min + height
+
+            # 1. Clip the pixel coordinates within the image boundaries BEFORE calculation
+            x_min_c = max(0.0, min(float(img_width),  x_min))
+            y_min_c = max(0.0, min(float(img_height), y_min))
+            x_max_c = max(0.0, min(float(img_width),  x_max))
+            y_max_c = max(0.0, min(float(img_height), y_max))
+
+            # 2. Calculate the actual width/height after clipping
+            new_width  = x_max_c - x_min_c
+            new_height = y_max_c - y_min_c
+
+            # Skip bbox that is too small or completely outside the image
+            if new_width <= 2 or new_height <= 2:
                 continue
 
-            w_norm = clip(width / img_width)
-            h_norm = clip(height / img_height)
+            # 3. Calculate the center based on the clipped box
+            x_center = x_min_c + new_width  / 2.0
+            y_center = y_min_c + new_height / 2.0
 
-            if w_norm == 0.0 or h_norm == 0.0:
-                continue
+            # 4. Normalize  [0.0, 1.0]
+            x_center_norm = x_center   / img_width
+            y_center_norm = y_center   / img_height
+            w_norm        = new_width  / img_width
+            h_norm        = new_height / img_height
 
-            x_center_norm = clip((x_min + width / 2.0) / img_width)
-            y_center_norm = clip((y_min + height / 2.0) / img_height)
+            # 5. Clip the normalized coordinates to ensure they are within [0, 1]
+            normalized_bboxes.append((class_id,clip(x_center_norm), clip(y_center_norm), clip(w_norm), clip(h_norm)))
 
-    
-            normalized_bboxes.append((class_id, x_center_norm, y_center_norm, w_norm, h_norm))
-
-        # Only save the normalized bounding boxes if there are valid ones after normalization.
         if normalized_bboxes:
-            # Still use the original image key (e.g., "visdrone_00001") for the normalized data.
             normalized_data[image_key] = normalized_bboxes
 
     return normalized_data

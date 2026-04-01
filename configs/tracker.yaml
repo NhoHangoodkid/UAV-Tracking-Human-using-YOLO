@@ -1,0 +1,44 @@
+# configs/tracker.yaml
+# Configuration for the multi-object tracking algorithm.
+# Switching tracker (ByteTrack <-> BoT-SORT) only requires changing tracker_type —
+# all threshold parameters below are shared between both algorithms.
+
+
+# TRACKER SELECTION
+
+tracker_type: bytetrack         # Tracking algorithm to use.
+                                # bytetrack -> faster, lighter, better for crowded scenes.
+                                # botsort   -> more accurate re-ID, heavier, needs more compute.
+
+
+# CONFIDENCE THRESHOLDS
+# ByteTrack uses a two-stage matching strategy:
+#   Stage 1: match high-confidence detections first (clean, reliable boxes).
+#   Stage 2: use low-confidence detections to recover tracks that were lost in Stage 1.
+
+
+track_high_thresh: 0.5          # Minimum confidence for Stage 1 matching.
+                                # Detections above this are considered reliable and matched first.
+
+track_low_thresh:  0.1          # Minimum confidence for Stage 2 matching.
+                                # Catches partially occluded or motion-blurred people that YOLO.
+                                # is less certain about. Must be lower than track_high_thresh.
+
+new_track_thresh:  0.6          # Minimum confidence to assign a brand-new ID.
+                                # Set higher than track_high_thresh to avoid creating IDs
+                                # for false positives (e.g., shadows or distant trees).
+
+
+# TEMPORAL PARAMETERS
+
+
+track_buffer: 30                # Maximum number of frames a track can go undetected before its
+                                # ID is permanently deleted.
+                                # 30 frames ≈ 1 second at 30 fps.
+                                # Increase to 60 for 60 fps video, or when people frequently
+                                # pass behind obstacles.
+
+match_thresh:  0.8              # Minimum IoU score required to link a detection in frame T
+                                # to a track from frame T-1.
+                                # 0.8 is strict - reduces ID switches in crowded scenes.
+                                # Lower to 0.7 if tracking breaks on fast-moving subjects.

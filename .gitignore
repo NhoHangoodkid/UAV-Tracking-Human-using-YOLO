@@ -39,5 +39,5 @@ output/tracking/*
 *.log
 test_codec.mp4
 !output/tracking/uav_high_119_comparison.mp4
-# End of ignore rules
+
 

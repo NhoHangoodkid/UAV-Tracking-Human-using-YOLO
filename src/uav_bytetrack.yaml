@@ -1,0 +1,9 @@
+# UAV-optimized ByteTrack configuration for aerial surveillance
+# Aggressively tuned to minimize ID switching in dense crowds
+tracker_type: bytetrack
+track_high_thresh: 0.15
+track_low_thresh: 0.05
+new_track_thresh: 0.15
+track_buffer: 150
+match_thresh: 0.90
+fuse_score: True

@@ -1,0 +1,66 @@
+# ──────────────────────────────────────────────────────────────
+# YOLO11 Training Configuration — UAV Human Detection
+# Optimized for RTX 4050 Laptop (6 GB VRAM)
+# v2: Small model + High resolution for small object detection
+# ──────────────────────────────────────────────────────────────
+
+# ── Model ──
+model: yolo11s.pt            # Small model (9.4M params) — frees VRAM for higher resolution
+                              # Single class (human) doesn't need Medium capacity
+                              # Saves ~50% VRAM vs yolo11m.pt
+
+# ── Core Training ──
+epochs: 150                   # Reduced from 300 — high-res converges faster
+patience: 40                  # Early-stop sooner — avoid wasting time on plateau
+batch: 4                      # Reduced from 8 (OOM) — safe for 6GB VRAM at 1280px
+                              # Gradient accumulation (nbs=64) → effective batch = 64
+imgsz: 1280                   # 2x resolution (was 640) — CRITICAL for small objects
+                              # 4x more pixels → humans visible at 20-60px instead of 5-15px
+workers: 4                    # Reduced from 8 — laptop CPU, avoid overhead
+
+# ── Multi-Scale Training ──
+multi_scale: false            # DISABLED — was 0.5 but caused Size to spike to 1920px
+                              # requiring 10.9GB VRAM (exceeds 6GB RTX 4050)
+                              # Fixed 1280px is already 2x larger than previous 640px
+
+# ── Optimizer ──
+optimizer: auto               # Let ultralytics choose (SGD for training from scratch)
+lr0: 0.01                     # Initial learning rate
+lrf: 0.01                     # Final LR = lr0 * lrf (cosine decay to 1% of initial)
+cos_lr: true                  # Cosine annealing schedule — smoother convergence
+momentum: 0.937               # SGD momentum
+weight_decay: 0.0005          # L2 regularization
+warmup_epochs: 3.0            # Reduced from 5.0 — small model warms up faster
+warmup_momentum: 0.8          # Momentum during warmup
+warmup_bias_lr: 0.1           # Bias LR during warmup
+
+# ── Augmentation — Tuned for small objects in drone imagery ──
+# Geometric
+degrees: 15.0                 # Rotation ±15° (drone images can have varied angles)
+translate: 0.2                # Translation ±20%
+scale: 0.5                    # Scale ±50% (was 0.9 — too aggressive, objects disappeared)
+shear: 2.0                    # Shear ±2°
+perspective: 0.0001           # Slight perspective distortion (simulates drone angle changes)
+flipud: 0.5                   # Vertical flip — drone top-down views are rotation-invariant
+fliplr: 0.5                   # Horizontal flip
+
+# Color / Photometric
+hsv_h: 0.015                  # Hue shift ±1.5%
+hsv_s: 0.7                    # Saturation shift ±70%
+hsv_v: 0.4                    # Brightness shift ±40%
+
+# Mosaic / MixUp / CopyPaste — key for small object performance
+mosaic: 1.0                   # 100% mosaic probability — critical for small objects
+close_mosaic: 20              # Disable mosaic last 20 epochs (was 30) — fine-tune sooner
+mixup: 0.15                   # 15% mixup — moderate regularization
+copy_paste: 0.5               # 50% copy-paste (was 0.3) — boosts small object detection
+erasing: 0.2                  # 20% random erasing (was 0.4) — reduced to preserve small objects
+
+# ── Loss Weights ──
+box: 7.5                      # Box loss weight (default=7.5)
+cls: 0.5                      # Classification loss weight (default=0.5)
+dfl: 1.5                      # Distribution focal loss weight (default=1.5)
+
+# ── Saving ──
+save_period: 25               # Save checkpoint every 25 epochs
+plots: true                   # Generate training plots

@@ -1,90 +1,87 @@
-from pathlib import Path
-import struct
+"""Coordinate normalizer module to convert pixel bounding boxes into YOLO normalized format."""
 
-# The YOLO input format is  <class_label> <x_center> <y_center> <width> <height>, where the coordinates are normalized to the range [0, 1] relative to the
-# image dimensions.
-# This file uses the output of the class_mapping.py to convert the original annotation files into the YOLO format,
-#  and then normalizes the coordinates based on the image dimensions.
+import struct
+from pathlib import Path
+
 
 def get_image_size(image_path):
-    """
-    Get the dimensions of an image (width, height) using the struct module to read the image header for  normalizings.
-    This function supports JPEG and PNG formats.
-    """
+    """Read image dimensions width and height directly from PNG or JPEG file headers."""
     try:
-        with open(image_path, 'rb') as f:
-            header = f.read(24)
+        with open(image_path, "rb") as file:
+            header = file.read(24)
 
             # PNG format
-            if header[:8] == b'\x89PNG\r\n\x1a\n':
-                width = struct.unpack('>I', header[16:20])[0]
-                height = struct.unpack('>I', header[20:24])[0]
+            if header[:8] == b"\x89PNG\r\n\x1a\n":
+                width = struct.unpack(">I", header[16:20])[0]
+                height = struct.unpack(">I", header[20:24])[0]
                 return width, height
 
             # JPEG format
-            if header[:2] == b'\xff\xd8':
-                f.seek(2)
-                for _ in range(1000):  # prevent infinite loop.
-                    marker = f.read(2)
+            if header[:2] == b"\xff\xd8":
+                file.seek(2)
+                for _ in range(1000):
+                    marker = file.read(2)
                     if len(marker) < 2:
                         break
 
-                    # Start Of Frame markers contain size info.
+                    # Start Of Frame markers containing dimension info
                     if marker[0] == 0xFF and marker[1] in (
-                        0xC0, 0xC1, 0xC2, 0xC3,
-                        0xC5, 0xC6, 0xC7, 0xC9,
-                        0xCA, 0xCB, 0xCD, 0xCE, 0xCF):
-                        f.read(3)
-                        height = struct.unpack('>H', f.read(2))[0]
-                        width = struct.unpack('>H', f.read(2))[0]
+                        0xC0,
+                        0xC1,
+                        0xC2,
+                        0xC3,
+                        0xC5,
+                        0xC6,
+                        0xC7,
+                        0xC9,
+                        0xCA,
+                        0xCB,
+                        0xCD,
+                        0xCE,
+                        0xCF,
+                    ):
+                        file.read(3)
+                        height = struct.unpack(">H", file.read(2))[0]
+                        width = struct.unpack(">H", file.read(2))[0]
                         return width, height
                     else:
-                        seg_len = struct.unpack('>H', f.read(2))[0]
-                        f.seek(seg_len - 2, 1)
+                        seg_len = struct.unpack(">H", file.read(2))[0]
+                        file.seek(seg_len - 2, 1)
 
     except (OSError, struct.error):
         return None
 
     return None
 
-def clip(value):
-    """
-    Clip a value to the range [0, 1]. This is used to ensure that the normalized coordinates do not exceed the valid range.
-    """
-    return min(max(value, 0.0), 1.0)
+
+def clip(value, min_val=0.0, max_val=1.0):
+    """Clip a numeric value to a bounded range."""
+    return min(max(value, min_val), max_val)
+
 
 def normalize_coordinates(mapped_objects, images_dirs):
-    """
-    Normalize the coordinates of the bounding boxes in the mapped_objects based on the dimensions of the corresponding images.
-    The function iterates through each file in the mapped_objects, retrieves the image dimensions using get_image_size(),
-    and then normalizes the coordinates to the YOLO format.
-    """
+    """Normalize pixel bounding boxes into relative YOLO coordinates between 0 and 1."""
     if isinstance(images_dirs, (str, Path)):
         images_dirs = [images_dirs]
 
     image_index = {}
-    
     for folder in images_dirs:
         folder_path = Path(folder)
-
         if not folder_path.exists():
             continue
 
-        for ext in ("*.jpg", "*.jpeg", "*.png", "*.JPG", "*.PNG"):
-            for p in folder_path.glob(ext):
-                image_index[p.stem] = p
-    
+        for ext in ("*.jpg", "*.jpeg", "*.png", "*.JPG", "*.JPEG", "*.PNG"):
+            for img_path in folder_path.glob(ext):
+                image_index[img_path.stem] = img_path
+
     normalized_data = {}
 
     for image_key, bboxes in mapped_objects.items():
-
-        # "visdrone_uav_0001_frame_002" -> ["visdrone", "uav_0001_frame_002"]
-        parts = image_key.split('_', 1)
+        parts = image_key.split("_", 1)
         if len(parts) != 2:
             continue
 
         _, image_stem = parts
-
         image_path = image_index.get(image_stem)
         if image_path is None:
             continue
@@ -97,37 +94,35 @@ def normalize_coordinates(mapped_objects, images_dirs):
         normalized_bboxes = []
 
         for class_id, x_min, y_min, width, height in bboxes:
-
-            # Calculate the coordinate of the opposite corner of the bounding box
             x_max = x_min + width
             y_max = y_min + height
 
-            # 1. Clip the pixel coordinates within the image boundaries BEFORE calculation
-            x_min_c = max(0.0, min(float(img_width),  x_min))
-            y_min_c = max(0.0, min(float(img_height), y_min))
-            x_max_c = max(0.0, min(float(img_width),  x_max))
-            y_max_c = max(0.0, min(float(img_height), y_max))
+            # Clip pixel coordinates to image boundary
+            x_min_clipped = max(0.0, min(float(img_width), x_min))
+            y_min_clipped = max(0.0, min(float(img_height), y_min))
+            x_max_clipped = max(0.0, min(float(img_width), x_max))
+            y_max_clipped = max(0.0, min(float(img_height), y_max))
 
-            # 2. Calculate the actual width/height after clipping
-            new_width  = x_max_c - x_min_c
-            new_height = y_max_c - y_min_c
+            clipped_width = x_max_clipped - x_min_clipped
+            clipped_height = y_max_clipped - y_min_clipped
 
-            # Skip bbox that is too small or completely outside the image
-            if new_width <= 2 or new_height <= 2:
+            # Discard tiny bounding boxes
+            if clipped_width <= 2.0 or clipped_height <= 2.0:
                 continue
 
-            # 3. Calculate the center based on the clipped box
-            x_center = x_min_c + new_width  / 2.0
-            y_center = y_min_c + new_height / 2.0
+            # Calculate center coordinate in pixel space
+            x_center = x_min_clipped + clipped_width / 2.0
+            y_center = y_min_clipped + clipped_height / 2.0
 
-            # 4. Normalize  [0.0, 1.0]
-            x_center_norm = x_center   / img_width
-            y_center_norm = y_center   / img_height
-            w_norm        = new_width  / img_width
-            h_norm        = new_height / img_height
+            # Normalize to 0 to 1 range
+            x_center_norm = clip(x_center / img_width)
+            y_center_norm = clip(y_center / img_height)
+            width_norm = clip(clipped_width / img_width)
+            height_norm = clip(clipped_height / img_height)
 
-            # 5. Clip the normalized coordinates to ensure they are within [0, 1]
-            normalized_bboxes.append((class_id,clip(x_center_norm), clip(y_center_norm), clip(w_norm), clip(h_norm)))
+            normalized_bboxes.append(
+                (class_id, x_center_norm, y_center_norm, width_norm, height_norm)
+            )
 
         if normalized_bboxes:
             normalized_data[image_key] = normalized_bboxes

@@ -1,0 +1,16 @@
+# ── PATHS ──
+path: ../../data/dataset
+
+train: images/train       # Training images
+val:   images/val         # Validation images
+test:  images/test        # Test images
+
+
+# ── CLASSES ──
+# nc    : total number of classes
+# names : class name list, where index = class ID
+#         Must match TARGET_CLASS_LABEL in class_mapping.py
+
+nc: 1
+names: ["human"]          # ID 0 -> human
+                          # To add Vehicle: nc: 2, names: ["human", "vehicle"]

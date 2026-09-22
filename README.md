@@ -4,9 +4,9 @@ This project detects and tracks people in aerial UAV footage. It combines a YOLO
 
 ## Tracking Demo
 
-![BoT-SORT and ByteTrack comparison](output/tracking/uav_high_119_comparison.gif)
+![ByteTrack and BoT-SORT comparison](output/tracking/uav_street_009_comparison.gif)
 
-The preview compares BoT-SORT (left) and ByteTrack (right) on the VisDrone `uav_high_119` sequence.
+The preview compares ByteTrack (left) and BoT-SORT (right) on the VisDrone `uav_street_009` sequence.
 
 
 ## Features

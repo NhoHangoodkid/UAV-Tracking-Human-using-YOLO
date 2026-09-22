@@ -1,8 +1,42 @@
-data/
-weights/
-output/
-runs/
-*.pt
-*.zip
+# Byte-compiled / optimized / DLL files
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+*.so
+
+# Environments
+.venv/
+venv/
+ENV/
+env/
+
+# Datasets and Archives
+data/
+*.zip
+*.tar
+*.tar.gz
+
+# Model Weights and Exported Formats
+weights/
+*.pt
+*.pth
+*.onnx
+*.engine
+*.tflite
+
+# Training Runs, Inference Outputs, and Benchmark Reports
+runs/
+output/
+!output/
+output/*
+!output/tracking/
+output/tracking/*
+!output/tracking/uav_high_119_comparison.gif
+
+# Temporary Media and Logs
+*.mp4
+*.avi
+*.log
+test_codec.mp4
+!output/tracking/uav_high_119_comparison.mp4
+

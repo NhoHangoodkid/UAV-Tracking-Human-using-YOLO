@@ -74,3 +74,7 @@ Benchmark settings: YOLO11s, 1280px input, confidence `0.15`, IoU `0.5`, NVIDIA 
 - **BoT-SORT:** slower but usually retains more detections in crowded or moving-camera scenes through appearance features and camera-motion compensation.
 
 The benchmark's total track IDs are raw tracker instances over a video, not a ground-truth count of unique people. Short detector gaps or occlusions can create new raw track instances.
+
+## License and Third-Party Notice
+
+This project uses Ultralytics YOLO11. Please review the [Ultralytics licensing terms](https://github.com/ultralytics/ultralytics/blob/main/LICENSE), especially the AGPL-3.0 requirements for public or commercial use.
